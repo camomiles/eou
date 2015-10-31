@@ -21,8 +21,6 @@ int	eou_clone_create(struct if_clone *, int);
 int	eou_clone_destroy(struct ifnet *);
 int	eou_media_change(struct ifnet *);
 void	eou_media_status(struct ifnet *, struct ifmediareq *);
-// Count amount of times clone has been called
-int times_called = 0;
 
 struct eou_softc {
 	struct arpcom		sc_ac;
@@ -53,7 +51,7 @@ void
 eouattach(int neou)
 {
 	if_clone_attach(&eou_cloner);
-	printf("\n\n\n ========= EOU DEVICE ATTACHED ========= \n\n\n");
+	printf("eou0: pseudo-device driver has been initialized. ");
 }
 
 /*
@@ -102,8 +100,11 @@ eou_clone_create(struct if_clone *ifc, int unit)
 	if_attach(ifp);
 	ether_ifattach(ifp);
 
-	printf(" ========= EOU %s CREATED ========= \n", ifp->if_xname);
-	times_called = times_called + 1;
+	if (ifp->if_flags & IFF_DEBUG) {
+		printf("Debug: on\n");
+	} else { 
+		printf("Debug: off\n");
+	}
 
 	return (0);
 }
