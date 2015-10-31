@@ -13,8 +13,6 @@
 #include <netinet/in.h>
 #include <netinet/if_ether.h>
 
-// Print to console
-#include <stdio.h>
 
 void	eouattach(int);
 int	eouioctl(struct ifnet *, u_long, caddr_t);
@@ -49,14 +47,14 @@ void
 eouattach(int neou)
 {
 	if_clone_attach(&eou_cloner);
-	printf("\n\n\n ========= EOU DEVICE ATTACHED ========= \n\n\n");
+	printk("\n\n\n ========= EOU DEVICE ATTACHED ========= \n\n\n");
 }
 
 int
 eou_clone_create(struct if_clone *ifc, int unit)
 {
 
-	printf("\n\n\n ========= EOU DEVICE CLONE CREATED ========= \n\n\n");
+	printk("\n\n\n ========= EOU DEVICE CLONE CREATED ========= \n\n\n");
 
 	struct ifnet		*ifp;
 	struct eou_softc	*sc;
@@ -66,7 +64,7 @@ eou_clone_create(struct if_clone *ifc, int unit)
 		return (ENOMEM);
 
 	ifp = &sc->sc_ac.ac_if;
-	snprintf(ifp->if_xname, sizeof ifp->if_xname, "eou%d", unit);
+	snprintk(ifp->if_xname, sizeof ifp->if_xname, "eou%d", unit);
 	ifp->if_flags = IFF_BROADCAST | IFF_SIMPLEX | IFF_MULTICAST;
 	ether_fakeaddr(ifp);
 
@@ -92,7 +90,7 @@ int
 eou_clone_destroy(struct ifnet *ifp)
 {
 
-	printf("\n\n\n ========= EOU DEVICE CLONE DESTROYED ========= \n\n\n");
+	printk("\n\n\n ========= EOU DEVICE CLONE DESTROYED ========= \n\n\n");
 
 	struct eou_softc	*sc = ifp->if_softc;
 
@@ -111,7 +109,7 @@ void
 eoustart(struct ifnet *ifp)
 {
 
-	printf("\n\n\n ========= EOU DEVICE START TO SEND PACKETS ========= \n\n\n");
+	printk("\n\n\n ========= EOU DEVICE START TO SEND PACKETS ========= \n\n\n");
 
 	struct mbuf		*m;
 	int			 s;
@@ -133,7 +131,7 @@ int
 eouioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 {
 
-	printf("\n\n\n ========= EOU DEVICE CONTROL ========= \n\n\n");
+	printk("\n\n\n ========= EOU DEVICE CONTROL ========= \n\n\n");
 
 	struct eou_softc	*sc = (struct eou_softc *)ifp->if_softc;
 	struct ifaddr		*ifa = (struct ifaddr *)data;
