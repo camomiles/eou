@@ -56,7 +56,7 @@ int
 eou_clone_create(struct if_clone *ifc, int unit)
 {
 	// Called on ifconfig eou0 create
-	printf(" ========= EOU DEVICE CLONE %d CREATED ========= ");
+	printf(" ========= EOU %d CREATED ========= \n", times_called);
 	times_called = times_called + 1;
 
 	struct ifnet		*ifp;
@@ -92,7 +92,7 @@ eou_clone_create(struct if_clone *ifc, int unit)
 int
 eou_clone_destroy(struct ifnet *ifp)
 {
-	printf(" ========= EOU DEVICE CLONE DESTROYED ========= ");
+	printf(" ========= EOU DEVICE CLONE DESTROYED =========  \n");
 
 	struct eou_softc	*sc = ifp->if_softc;
 
@@ -110,7 +110,7 @@ eou_clone_destroy(struct ifnet *ifp)
 void
 eoustart(struct ifnet *ifp)
 {
-	printf(" ========= EOU DEVICE START TO SEND PACKETS ========= ");
+	printf(" ========= EOU DEVICE START TO SEND PACKETS ========= \n");
 
 	struct mbuf		*m;
 	int			 s;
@@ -139,14 +139,14 @@ eouioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 
 	switch (cmd) {
 	case SIOCSIFADDR:
-		printf(" ========= EOU DEVICE CONTROL: SIOCSIFADDR ========= ");
+		printf(" ========= EOU DEVICE: SIOCSIFADDR ========= \n ");
 		ifp->if_flags |= IFF_UP;
 		if (ifa->ifa_addr->sa_family == AF_INET)
 			arp_ifinit(&sc->sc_ac, ifa);
 		/* FALLTHROUGH */
 
 	case SIOCSIFFLAGS:
-		printf(" ========= EOU DEVICE CONTROL: SIOCSIFFLAGS ========= ");
+		printf(" ========= EOU DEVICE: SIOCSIFFLAGS ========= \n");
 		if (ifp->if_flags & IFF_UP) {
 			ifp->if_flags |= IFF_RUNNING;
 			link_state = LINK_STATE_UP;
@@ -162,17 +162,17 @@ eouioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 
 	case SIOCADDMULTI:
 	case SIOCDELMULTI:
-		printf(" ========= EOU DEVICE CONTROL: SIOCADDMULTI / SIOCDELMULTI ========= ");
+		printf(" ========= EOU DEVICE: SIOCADDMULTI ========= \n");
 		break;
 
 	case SIOCGIFMEDIA:
 	case SIOCSIFMEDIA:
-		printf(" ========= EOU DEVICE CONTROL: SIOCGIFMEDIA / SIOCSIFMEDIA ========= ");
+		printf(" ========= EOU DEVICE: SIOCSIFMEDIA ========= \n");
 		error = ifmedia_ioctl(ifp, ifr, &sc->sc_media, cmd);
 		break;
 
 	default:
-		printf(" ========= EOU DEVICE CONTROL: DEFAULT ========= ");
+		printf(" ========= EOU DEVICE: DEFAULT ========= \n ");
 		error = ether_ioctl(ifp, &sc->sc_ac, cmd, data);
 	}
 	return (error);
