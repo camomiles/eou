@@ -53,7 +53,7 @@ void
 eouattach(int neou)
 {
 	if_clone_attach(&eou_cloner);
-	printf("\n\n\n ========= EOU DEVICE ATTACHED ========= \n\n\n", neou);
+	printf("\n\n\n ========= EOU DEVICE ATTACHED ========= \n\n\n");
 }
 
 /*
@@ -67,12 +67,12 @@ eou_clone_create(struct if_clone *ifc, int unit)
 	// Called on ifconfig eou create
 	struct ifnet		*ifp;
 	// {
-	//		if_xname 	- name of this instance of the interface
-	// 		if_flags 	- interface capabilities and state
-	//		if_sortc 	- pointer to the interfaces software state
-	// 		if_ioctl 	- pointer to the interfaces ioctl function
-	//		if_start 	- pointer to the interfaces packet transmit function
-	//		if_snd	 	- send queue, ie, packets ready for transmission
+	//	if_xname 	- name of this instance of the interface
+	// 	if_flags 	- interface capabilities and state
+	//	if_sortc 	- pointer to the interfaces software state
+	// 	if_ioctl 	- pointer to the interfaces ioctl function
+	//	if_start 	- pointer to the transmit function
+	//	if_snd	 	- queue of packets ready for transmission
 	// }
 	struct eou_softc	*sc;
 
