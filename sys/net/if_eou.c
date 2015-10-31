@@ -151,7 +151,11 @@ eoustart(struct ifnet *ifp)
 	}
 }
 
-/* ARGSUSED */
+/* ARGSUSED 
+* Parameters:
+* ifp - interface descriptor
+* cmd - a request code number
+*/
 int
 eouioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 {
@@ -172,12 +176,20 @@ eouioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 	case SIOCSIFFLAGS:
 		printf(" ========= EOU DEVICE: SIOCSIFFLAGS ========= \n");
 		if (ifp->if_flags & IFF_UP) {
+			// If IFF_UP is true, 
 			ifp->if_flags |= IFF_RUNNING;
 			link_state = LINK_STATE_UP;
 		} else {
 			ifp->if_flags &= ~IFF_RUNNING;
 			link_state = LINK_STATE_DOWN;
 		}
+
+		if (ifp->if_flags & IFF_DEBUG) {
+			printf(" ========= DEBUG is ON ========= \n");
+		} else {
+			printf(" ========= DEBUG is OFF ========= \n");
+		}
+
 		if (ifp->if_link_state != link_state) {
 			ifp->if_link_state = link_state;
 			if_link_state_change(ifp);
