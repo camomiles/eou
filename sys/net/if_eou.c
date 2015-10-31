@@ -26,6 +26,10 @@ int times_called = 0;
 
 struct eou_softc {
 	struct arpcom		sc_ac;
+	// First member - ifnet structure, so this object can be cast to ifnet
+	// { 
+	// 		ac_enaddr 	- holds MAC address of the interface
+	// }
 	struct ifmedia		sc_media;
 };
 
@@ -49,19 +53,30 @@ void
 eouattach(int neou)
 {
 	if_clone_attach(&eou_cloner);
-	printf("\n\n\n ========= EOU DEVICE ATTACHED ========= \n\n\n");
+	printf("\n\n\n ========= EOU DEVICE ATTACHED ========= \n\n\n", neou);
 }
 
+/*
+ * The clone_create function is responsible for allocating the memory 
+ * needed for the interfaces data structures, initializing it, 
+ * and attaching it to the network stack.
+ */
 int
 eou_clone_create(struct if_clone *ifc, int unit)
 {
-	// Called on ifconfig eou0 create
-	printf(" ========= EOU %d CREATED ========= \n", times_called);
-	times_called = times_called + 1;
-
+	// Called on ifconfig eou create
 	struct ifnet		*ifp;
+	// {
+	//		if_xname 	- name of this instance of the interface
+	// 		if_flags 	- interface capabilities and state
+	//		if_sortc 	- pointer to the interfaces software state
+	// 		if_ioctl 	- pointer to the interfaces ioctl function
+	//		if_start 	- pointer to the interfaces packet transmit function
+	//		if_snd	 	- send queue, ie, packets ready for transmission
+	// }
 	struct eou_softc	*sc;
 
+	// Allocate memory for eou_softc structure
 	if ((sc = malloc(sizeof(*sc),
 	    M_DEVBUF, M_NOWAIT|M_ZERO)) == NULL)
 		return (ENOMEM);
@@ -86,9 +101,18 @@ eou_clone_create(struct if_clone *ifc, int unit)
 
 	if_attach(ifp);
 	ether_ifattach(ifp);
+
+	printf(" ========= EOU %s CREATED ========= \n", ifp->if_xname);
+	times_called = times_called + 1;
+
 	return (0);
 }
 
+
+/* 
+ * The destroy function is responsible for detaching the interface 
+ * from the network stack and freeing any memory associated with it.
+ */ 
 int
 eou_clone_destroy(struct ifnet *ifp)
 {
@@ -172,7 +196,7 @@ eouioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 		break;
 
 	default:
-		printf(" ========= EOU DEVICE: DEFAULT ========= \n ");
+		printf(" ========= EOU DEVICE: %lu ========= \n ", cmd);
 		error = ether_ioctl(ifp, &sc->sc_ac, cmd, data);
 	}
 	return (error);
