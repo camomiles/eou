@@ -163,7 +163,7 @@ eouioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 
 	switch (cmd) {
 	case SIOCSIFADDR:
-		printf(" ========= EOU DEVICE: SIOCSIFADDR ========= \n ");
+		printf(" ========= EOU DEVICE: SIOCSIFADDR ========= \n");
 		ifp->if_flags |= IFF_UP;
 		if (ifa->ifa_addr->sa_family == AF_INET)
 			arp_ifinit(&sc->sc_ac, ifa);
@@ -196,7 +196,7 @@ eouioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 		break;
 
 	default:
-		printf(" ========= EOU DEVICE: %lu ========= \n ", cmd);
+		printf(" ========= EOU DEVICE: %lu ========= \n", cmd);
 		error = ether_ioctl(ifp, &sc->sc_ac, cmd, data);
 	}
 	return (error);
