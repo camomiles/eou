@@ -21,6 +21,8 @@ int	eou_clone_create(struct if_clone *, int);
 int	eou_clone_destroy(struct ifnet *);
 int	eou_media_change(struct ifnet *);
 void	eou_media_status(struct ifnet *, struct ifmediareq *);
+// Count amount of times clone has been called
+int times_called = 0;
 
 struct eou_softc {
 	struct arpcom		sc_ac;
@@ -53,8 +55,9 @@ eouattach(int neou)
 int
 eou_clone_create(struct if_clone *ifc, int unit)
 {
-
-	printf("\n\n\n ========= EOU DEVICE CLONE CREATED ========= \n\n\n");
+	// Called on ifconfig eou0 create
+	printf(" ========= EOU DEVICE CLONE %d CREATED ========= ");
+	times_called = times_called + 1;
 
 	struct ifnet		*ifp;
 	struct eou_softc	*sc;
@@ -89,8 +92,7 @@ eou_clone_create(struct if_clone *ifc, int unit)
 int
 eou_clone_destroy(struct ifnet *ifp)
 {
-
-	printf("\n\n\n ========= EOU DEVICE CLONE DESTROYED ========= \n\n\n");
+	printf(" ========= EOU DEVICE CLONE DESTROYED ========= ");
 
 	struct eou_softc	*sc = ifp->if_softc;
 
@@ -108,8 +110,7 @@ eou_clone_destroy(struct ifnet *ifp)
 void
 eoustart(struct ifnet *ifp)
 {
-
-	printf("\n\n\n ========= EOU DEVICE START TO SEND PACKETS ========= \n\n\n");
+	printf(" ========= EOU DEVICE START TO SEND PACKETS ========= ");
 
 	struct mbuf		*m;
 	int			 s;
@@ -130,9 +131,7 @@ eoustart(struct ifnet *ifp)
 int
 eouioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 {
-
-	printf("\n\n\n ========= EOU DEVICE CONTROL ========= \n\n\n");
-
+	// Access data about this pseudo-device
 	struct eou_softc	*sc = (struct eou_softc *)ifp->if_softc;
 	struct ifaddr		*ifa = (struct ifaddr *)data;
 	struct ifreq		*ifr = (struct ifreq *)data;
@@ -140,12 +139,14 @@ eouioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 
 	switch (cmd) {
 	case SIOCSIFADDR:
+		printf(" ========= EOU DEVICE CONTROL: SIOCSIFADDR ========= ");
 		ifp->if_flags |= IFF_UP;
 		if (ifa->ifa_addr->sa_family == AF_INET)
 			arp_ifinit(&sc->sc_ac, ifa);
 		/* FALLTHROUGH */
 
 	case SIOCSIFFLAGS:
+		printf(" ========= EOU DEVICE CONTROL: SIOCSIFFLAGS ========= ");
 		if (ifp->if_flags & IFF_UP) {
 			ifp->if_flags |= IFF_RUNNING;
 			link_state = LINK_STATE_UP;
@@ -161,14 +162,17 @@ eouioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 
 	case SIOCADDMULTI:
 	case SIOCDELMULTI:
+		printf(" ========= EOU DEVICE CONTROL: SIOCADDMULTI / SIOCDELMULTI ========= ");
 		break;
 
 	case SIOCGIFMEDIA:
 	case SIOCSIFMEDIA:
+		printf(" ========= EOU DEVICE CONTROL: SIOCGIFMEDIA / SIOCSIFMEDIA ========= ");
 		error = ifmedia_ioctl(ifp, ifr, &sc->sc_media, cmd);
 		break;
 
 	default:
+		printf(" ========= EOU DEVICE CONTROL: DEFAULT ========= ");
 		error = ether_ioctl(ifp, &sc->sc_ac, cmd, data);
 	}
 	return (error);
