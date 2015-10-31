@@ -65,12 +65,14 @@ eou_clone_create(struct if_clone *ifc, int unit)
 	// Called on ifconfig eou create
 	struct ifnet		*ifp;
 	// {
+	// 	...
 	//	if_xname 	- name of this instance of the interface
 	// 	if_flags 	- interface capabilities and state
 	//	if_sortc 	- pointer to the interfaces software state
 	// 	if_ioctl 	- pointer to the interfaces ioctl function
 	//	if_start 	- pointer to the transmit function
 	//	if_snd	 	- queue of packets ready for transmission
+	//  ...
 	// }
 	struct eou_softc	*sc;
 
@@ -101,10 +103,8 @@ eou_clone_create(struct if_clone *ifc, int unit)
 	ether_ifattach(ifp);
 
 	if (ifp->if_flags & IFF_DEBUG) {
-		printf("Debug: on\n");
-	} else { 
-		printf("Debug: off\n");
-	}
+		printf("[%s] Debug: interface has been created. \n", ifp->if_xname);
+	} 
 
 	return (0);
 }
@@ -117,7 +117,9 @@ eou_clone_create(struct if_clone *ifc, int unit)
 int
 eou_clone_destroy(struct ifnet *ifp)
 {
-	printf(" ========= EOU DEVICE CLONE DESTROYED =========  \n");
+	if (ifp->if_flags & IFF_DEBUG) {
+		printf("[%s] Debug: destroy device. \n", ifp->if_xname);
+	}
 
 	struct eou_softc	*sc = ifp->if_softc;
 
@@ -135,7 +137,9 @@ eou_clone_destroy(struct ifnet *ifp)
 void
 eoustart(struct ifnet *ifp)
 {
-	printf(" ========= EOU DEVICE START TO SEND PACKETS ========= \n");
+	if (ifp->if_flags & IFF_DEBUG) {
+		printf("[%s] Debug: start packet transmission. \n", ifp->if_xname);
+	}
 
 	struct mbuf		*m;
 	int			 s;
@@ -168,27 +172,25 @@ eouioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 
 	switch (cmd) {
 	case SIOCSIFADDR:
-		printf(" ========= EOU DEVICE: SIOCSIFADDR ========= \n");
 		ifp->if_flags |= IFF_UP;
 		if (ifa->ifa_addr->sa_family == AF_INET)
 			arp_ifinit(&sc->sc_ac, ifa);
-		/* FALLTHROUGH */
+			/* FALLTHROUGH */
 
 	case SIOCSIFFLAGS:
-		printf(" ========= EOU DEVICE: SIOCSIFFLAGS ========= \n");
 		if (ifp->if_flags & IFF_UP) {
 			// If IFF_UP is true, 
 			ifp->if_flags |= IFF_RUNNING;
 			link_state = LINK_STATE_UP;
+			if (ifp->if_flags & IFF_DEBUG) {
+				printf("[%s] Debug: link state is now UP. \n", ifp->if_xname);
+			}
 		} else {
 			ifp->if_flags &= ~IFF_RUNNING;
 			link_state = LINK_STATE_DOWN;
-		}
-
-		if (ifp->if_flags & IFF_DEBUG) {
-			printf(" ========= DEBUG is ON ========= \n");
-		} else {
-			printf(" ========= DEBUG is OFF ========= \n");
+			if (ifp->if_flags & IFF_DEBUG) {
+				printf("[%s] Debug: link state is now DOWN. \n", ifp->if_xname);
+			}
 		}
 
 		if (ifp->if_link_state != link_state) {
@@ -199,17 +201,17 @@ eouioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 
 	case SIOCADDMULTI:
 	case SIOCDELMULTI:
-		printf(" ========= EOU DEVICE: SIOCADDMULTI ========= \n");
 		break;
 
 	case SIOCGIFMEDIA:
 	case SIOCSIFMEDIA:
-		printf(" ========= EOU DEVICE: SIOCSIFMEDIA ========= \n");
 		error = ifmedia_ioctl(ifp, ifr, &sc->sc_media, cmd);
 		break;
 
 	default:
-		printf(" ========= EOU DEVICE: %lu ========= \n", cmd);
+		if (ifp->if_flags & IFF_DEBUG) {
+			printf("[%s] Debug: interface recieved following command: %lu. \n", ifp->if_xname, cmd);
+		} 
 		error = ether_ioctl(ifp, &sc->sc_ac, cmd, data);
 	}
 	return (error);
