@@ -2847,7 +2847,7 @@ phys_status(int force)
 
 	if (dstport)
 		printf(":%u", ntohs(dstport));
-	if (ioctl(s, SIOCGVNETID, (caddr_t)&ifr) == 0 && ifr.ifr_vnetid > 0)
+	if (ioctl(s, SIOCGVNETID, (caddr_t)&ifr) == 0 && ifr.ifr_vnetid > -1)
 		printf(" vnetid %d", ifr.ifr_vnetid);
 	if (ioctl(s, SIOCGLIFPHYTTL, (caddr_t)&ifr) == 0 && ifr.ifr_ttl > 0)
 		printf(" ttl %d", ifr.ifr_ttl);
