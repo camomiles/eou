@@ -156,6 +156,16 @@ eoustart(struct ifnet *ifp)
 	}
 }
 
+int
+eou_config(struct ifnet *ifp, struct sockaddr *src, struct sockaddr *dst) {
+	// Eou soft controller
+	struct eou_softc		*sc = (struct eou_softc *)ifp->ifsoftc;
+	struct sockaddr_in		*src4, dst4;
+
+
+
+}
+
 /* ARGSUSED 
 * Parameters:
 * ifp - interface descriptor
@@ -206,6 +216,29 @@ eouioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 	case SIOCGIFMEDIA:
 	case SIOCSIFMEDIA:
 		error = ifmedia_ioctl(ifp, ifr, &sc->sc_media, cmd);
+		break;
+
+	// Set VNETID
+	case SIOCSVNETID:
+		// TODO Check if user is superuser
+		if (ifr->ifr_vnetid < 0 || ifr->ifr_vnetid > 0x00ffffff) {
+			error = EINVAL;
+			break;
+		}
+		// aquire software lock
+		s = splnet();
+		// Get vnetid from interface and assign it to sc
+		sc->sc_vnetid = (u_int32_t)ifr->ifr_vnetid;
+		// Release lock
+		splx(s);
+		break;
+
+	case SIOCGVNETID:
+		// Return VNETID back to the interface
+		ifr->ifr_vnetid = (int)sc->sc_vnetid;
+		if (ifp->if_flags & IFF_DEBUG) {
+			printf("[%s] Debug: interface vnetid has been set to: %d. \n", ifp->if_xname, ifr->ifr_vnetid);
+		}
 		break;
 
 	default:
