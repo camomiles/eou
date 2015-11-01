@@ -40,7 +40,7 @@ struct eou_softc {
 	u_int32_t		 sc_vnetid;
 	u_int8_t		 sc_ttl;
 
-	LIST_ENTRY(vxlan_softc)	 sc_entry;
+	LIST_ENTRY(eou_softc)	 sc_entry;
 };
 
 struct if_clone	eou_cloner =
@@ -172,6 +172,46 @@ eoustart(struct ifnet *ifp)
 	}
 }
 
+int
+eou_config(struct ifnet *ifp, struct sockaddr *src, struct sockaddr *dst)
+{
+	struct eou_softc	*sc = (struct eou_softc *)ifp->if_softc;
+	struct sockaddr_in	*src4, *dst4;
+	int			 reset = 0, error;
+
+	if (src != NULL && dst != NULL) {
+		/* XXX inet6 is not supported */
+		if (src->sa_family != AF_INET || dst->sa_family != AF_INET)
+			return (EAFNOSUPPORT);
+	} else {
+		/* Reset current configuration */
+		src = (struct sockaddr *)&sc->sc_src;
+		dst = (struct sockaddr *)&sc->sc_dst;
+		reset = 1;
+	}
+
+	src4 = satosin(src);
+	dst4 = satosin(dst);
+
+	// Check if adresses are valid
+	if (src4->sin_len != sizeof(*src4) || dst4->sin_len != sizeof(*dst4))
+		return (EINVAL);
+
+	// Assign port if specified 
+	if (dst4->sin_port)
+		sc->sc_dstport = dst4->sin_port;
+
+	// Reset configuration if needed
+	if (!reset) {
+		bzero(&sc->sc_src, sizeof(sc->sc_src));
+		bzero(&sc->sc_dst, sizeof(sc->sc_dst));
+		memcpy(&sc->sc_src, src, src->sa_len);
+		memcpy(&sc->sc_dst, dst, dst->sa_len);
+	}
+
+	return (0);
+}
+
 
 /* ARGSUSED 
 * Parameters:
@@ -185,6 +225,7 @@ eouioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 	struct eou_softc	*sc = (struct eou_softc *)ifp->if_softc;
 	struct ifaddr		*ifa = (struct ifaddr *)data;
 	struct ifreq		*ifr = (struct ifreq *)data;
+	struct if_laddrreq	*lifr = (struct if_laddrreq *)data;
 	int			 error = 0, link_state, s;
 
 	switch (cmd) {
@@ -217,6 +258,42 @@ eouioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 	case SIOCGIFMEDIA:
 	case SIOCSIFMEDIA:
 		error = ifmedia_ioctl(ifp, ifr, &sc->sc_media, cmd);
+		break;
+
+	// Set new source and destination address
+	case SIOCSLIFPHYADDR:
+		printf("Set new source and destination address. \n");
+		// Get software lock
+		s = splnet();
+		// Set source and destination information
+		error = eou_config(ifp,
+		    (struct sockaddr *)&lifr->addr,
+		    (struct sockaddr *)&lifr->dstaddr);
+		splx(s);
+		break;
+
+	// Remove source and destination address
+	case SIOCDIFPHYADDR:
+		s = splnet();
+		// Fill source and destination values with zeros
+		bzero(&sc->sc_src, sizeof(sc->sc_src));
+		bzero(&sc->sc_dst, sizeof(sc->sc_dst));
+		sc->sc_dstport = htons(3301);
+		splx(s);
+		break;
+
+	// Get source and destination address 
+	case SIOCGLIFPHYADDR:
+		if (sc->sc_dst.ss_family == AF_UNSPEC) {
+			error = EADDRNOTAVAIL;
+			break;
+		}
+		// Fill source and destination with zeros first
+		bzero(&lifr->addr, sizeof(lifr->addr));
+		bzero(&lifr->dstaddr, sizeof(lifr->dstaddr));
+		// Populate them with actual source and destination values
+		memcpy(&lifr->addr, &sc->sc_src, sc->sc_src.ss_len);
+		memcpy(&lifr->dstaddr, &sc->sc_dst, sc->sc_dst.ss_len);
 		break;
 
 	// Set VNETID
