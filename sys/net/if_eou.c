@@ -29,7 +29,6 @@ struct eou_softc {
 	// }
 	struct ifmedia		 sc_media;
 
-	struct ip_moptions	 sc_imo;
 	void			*sc_ahcookie;
 	void			*sc_lhcookie;
 	void			*sc_dhcookie;
