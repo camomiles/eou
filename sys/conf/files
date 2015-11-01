@@ -561,6 +561,8 @@ pseudo-device mpe: ifnet, ether
 pseudo-device vether: ifnet, ether
 pseudo-device pppx: ifnet
 pseudo-device vxlan: ifnet, ether, ifmedia
+# Define eou pseudo-device
+pseudo-device eou: ifnet, ether
 
 pseudo-device systrace
 
@@ -800,6 +802,8 @@ file net/if_trunk.c			trunk			needs-count
 file net/trunklacp.c			trunk
 file net/if_mpe.c			mpe			needs-count
 file net/if_vether.c			vether			needs-count
+# Define link to eou device driver file
+file net/if_eou.c			eou			needs-count
 file net/if_pppx.c			pppx			needs-count
 file net/if_vxlan.c			vxlan			needs-count
 file net80211/ieee80211.c		wlan

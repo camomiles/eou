@@ -103,6 +103,7 @@ pseudo-device	sppp	1	# Sync PPP/HDLC
 pseudo-device	trunk		# Trunking support
 pseudo-device	tun		# network tunneling over tty
 pseudo-device	vether		# Virtual ethernet
+pseudo-device	eou		# Virtual ethernet over UDP
 pseudo-device	vxlan		# Virtual extensible LAN
 pseudo-device	vlan		# IEEE 802.1Q VLAN
 
