@@ -23,12 +23,25 @@ int	eou_media_change(struct ifnet *);
 void	eou_media_status(struct ifnet *, struct ifmediareq *);
 
 struct eou_softc {
-	struct arpcom		sc_ac;
-	// First member - ifnet structure, so this object can be cast to ifnet
+	struct arpcom		 sc_ac;
 	// { 
 	// 		ac_enaddr 	- holds MAC address of the interface
 	// }
-	struct ifmedia		sc_media;
+	struct ifmedia		 sc_media;
+
+	struct ip_moptions	 sc_imo;
+	void			*sc_ahcookie;
+	void			*sc_lhcookie;
+	void			*sc_dhcookie;
+
+	struct sockaddr_storage	 sc_src;
+	struct sockaddr_storage	 sc_dst;
+	in_port_t		 sc_dstport;
+	u_int			 sc_rdomain;
+	u_int32_t		 sc_vnetid;
+	u_int8_t		 sc_ttl;
+
+	LIST_ENTRY(vxlan_softc)	 sc_entry;
 };
 
 struct if_clone	eou_cloner =
@@ -156,15 +169,6 @@ eoustart(struct ifnet *ifp)
 	}
 }
 
-int
-eou_config(struct ifnet *ifp, struct sockaddr *src, struct sockaddr *dst) {
-	// Eou soft controller
-	struct eou_softc		*sc = (struct eou_softc *)ifp->ifsoftc;
-	struct sockaddr_in		*src4, dst4;
-
-
-
-}
 
 /* ARGSUSED 
 * Parameters:
@@ -178,7 +182,7 @@ eouioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 	struct eou_softc	*sc = (struct eou_softc *)ifp->if_softc;
 	struct ifaddr		*ifa = (struct ifaddr *)data;
 	struct ifreq		*ifr = (struct ifreq *)data;
-	int			 error = 0, link_state;
+	int			 error = 0, link_state, s;
 
 	switch (cmd) {
 	case SIOCSIFADDR:
