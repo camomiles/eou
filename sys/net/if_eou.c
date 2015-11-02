@@ -377,13 +377,24 @@ eouioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 				if (m == NULL) {
 					printf("Cannot get a packet with header.\n");
 					return (error);
+				} else {
+					printf("Got packet with headers. \n");
 				}
 
 				m->m_len = m->m_pkthdr.len = 0;
 
 				h.eou_type = htons(EOU_T_PING);
+				printf("Try to copyback: \n");
 				m_copyback(m, 0, EOU_HDRLEN, &h, M_NOWAIT);
 
+
+				mbuf *adrr;
+				MGET(adrr, M_WAIT, MT_SONAME);
+				m->m_len = sc->sc_dst.ss_len;
+				sa = mtod(m, struct sockaddr *);
+				// - Fill the second m_buf with the dst
+				memcpy(sa, &sc->sc_dst,
+				    sc->sc_dst.ss_len);
 				// getnanotime(&tv);
 				// h->time_sec = htonl(tv.tv_sec);			/* XXX 2038 */
 				// h->time_nanosec = htonl(tv.tv_nsec);
@@ -394,7 +405,8 @@ eouioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 
 				// int
 				// sosend(struct socket *so, struct mbuf *addr, struct uio *uio, struct mbuf *top, struct mbuf *control, int flags);
-				error = sosend(sc->so, m, NULL, m, NULL, 0);
+				printf("Try sending: \n");
+				error = sosend(sc->so, addr, NULL, m, NULL, 0);
 
 				if (error) {
 					printf("Failed to send data to socket.\n");
