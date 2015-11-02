@@ -31,6 +31,8 @@ struct eou_header {
 	uint32_t 	eou_network;
 	uint16_t	eou_type;
 } __packed;
+
+#define EOU_HDRLEN	sizeof(struct eou_header)
      
 #define EOU_T_DATA		0x0000
 #define EOU_T_PING		0x8000
@@ -45,7 +47,7 @@ struct eou_pingpong {
 	uint8_t 		mac[8];
 } __packed;
 
-#define EOU_HDRLEN 	sizeof(struct eou_pingpong)
+#define EOU_PINGPONGLEN 	sizeof(struct eou_pingpong)
 
 struct eou_softc {
 	struct arpcom		 sc_ac;
@@ -266,7 +268,7 @@ eouioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 {
 	// Access data about this pseudo-device
 	struct eou_softc	*sc = (struct eou_softc *)ifp->if_softc;
-	struct eou_header	 h;
+	struct eou_header	*h;
 	struct ifaddr		*ifa = (struct ifaddr *)data;
 	struct ifreq		*ifr = (struct ifreq *)data;
 	struct if_laddrreq	*lifr = (struct if_laddrreq *)data;
@@ -387,11 +389,12 @@ eouioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 
 				m->m_len = m->m_pkthdr.len = EOU_HDRLEN;
 
-				h.eou_type = htons(EOU_T_PING);
 				printf("Try to copyback: \n");
-				ping = mtod(m, struct eou_pingpong *);
+				h = mtod(m, struct eou_header *);
+				h.eou_type = htons(EOU_T_PING);
+
 				printf("Memcopy:\n");
-				m_copyback(m, 0, sizeof(struct eou_header),
+				m_copyback(m, 0, EOU_HDRLEN,
 						&h, M_WAIT);
 
 				// getnanotime(&tv);
