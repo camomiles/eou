@@ -406,7 +406,7 @@ eouioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 				// int
 				// sosend(struct socket *so, struct mbuf *addr, struct uio *uio, struct mbuf *top, struct mbuf *control, int flags);
 				printf("Try sending: \n");
-				error = sosend(sc->so, sc->dest_addr, NULL, m, NULL, 0);
+				error = sosend(so, sc->dest_addr, NULL, m, NULL, 0);
 
 				if (error) {
 					printf("Failed to send data to socket.\n");
