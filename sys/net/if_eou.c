@@ -246,7 +246,9 @@ eouioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 	struct ifaddr		*ifa = (struct ifaddr *)data;
 	struct ifreq		*ifr = (struct ifreq *)data;
 	struct if_laddrreq	*lifr = (struct if_laddrreq *)data;
-	struct socket		*so;
+	struct socket		*so; /* Socket */
+	struct mbuf			*m; 
+	struct sockaddr		*sa; 
 	int			 error = 0, link_state, s;
 
 	switch (cmd) {
@@ -292,9 +294,8 @@ eouioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 
 		// try to connect to socket if configured with no errors
 		if (!error) {
-			// socreate -> sobind ->soconnect.
+			// socreate -> sobind -> soconnect pipeline
 			//1. Socreate - create new socket
-
 			if (sc->so == NULL) {
 				printf("Creating socket. sa_family: %d. \n",
 					sc->sc_dst.ss_family);
@@ -303,8 +304,27 @@ eouioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 
 				if (error) {
 					printf("Failed to create a socket. Error: %d \n", error);
+					break;
 				} else {
-					printf("Socket created without errors.");
+					printf("Socket created without errors.\n");
+				}
+
+				//2. Sobind - bind socket locally
+				MGET(m, M_WAIT, MT_SONAME);
+				m->m_len = sc->sc_src.ss_len;
+				sa = mtod(m, struct sockaddr *);
+				memcpy(sa, sc->sc_src,
+				    sc->sc_src.ss_len);
+
+				error = sobind(so, m, p);
+				m_freem(m);
+				if (error) {
+					printf("Failed to bind socket. Error: %d \n", error);
+					soclose(so);
+					splx(s);
+					return (error);
+				} else {
+					printf("Socket binding successful. \n");
 				}
 			} else {
 				printf("Socket already exists.\n");
