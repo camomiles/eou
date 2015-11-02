@@ -276,7 +276,6 @@ eouioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 	struct mbuf			*m;
 	struct mbuf			*addr;
 	struct sockaddr		*sa;
-	struct eou_pingpong	*ping;
 	struct proc			*p = curproc;
 	int			 error = 0, link_state, s;
 
@@ -391,11 +390,11 @@ eouioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 
 				printf("Try to copyback: \n");
 				h = mtod(m, struct eou_header *);
-				h.eou_type = htons(EOU_T_PING);
+				h->eou_type = htons(EOU_T_PING);
 
 				printf("Memcopy:\n");
 				m_copyback(m, 0, EOU_HDRLEN,
-						&h, M_WAIT);
+						h, M_DONTWAIT);
 
 				// getnanotime(&tv);
 				// h->time_sec = htonl(tv.tv_sec);			/* XXX 2038 */
