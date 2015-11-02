@@ -1,8 +1,21 @@
-// TODO Include licence header back
+/*
+ * Permission to use, copy, modify, and distribute this software for any
+ * purpose with or without fee is hereby granted, provided that the above
+ * copyright notice and this permission notice appear in all copies.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+ * WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+ * MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+ * ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+ * WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+ * ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+ * OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+ */
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/mbuf.h>
 #include <sys/socket.h>
+#include <sys/socketvar.h>
 #include <sys/sockio.h>
 #include <sys/ioctl.h>
 #include <sys/types.h>
@@ -25,21 +38,41 @@ int	eou_media_change(struct ifnet *);
 void	eou_media_status(struct ifnet *, struct ifmediareq *);
 int 	eou_config(struct ifnet *, struct sockaddr *, struct sockaddr *);
 
+struct eou_header { 
+	uint32_t 	eou_network;
+	uint16_t	eou_type;
+} __packed;
 
+#define EOU_HDRLEN	sizeof(struct eou_header)
+     
+#define EOU_T_DATA		0x0000
+#define EOU_T_PING		0x8000
+#define EOU_T_PONG		0x8001
+
+/* Pingpong payload structure */
+struct eou_pingpong {
+	struct eou_header	hdr;
+	uint16_t		_pad;
+	uint64_t		utime;
+	uint8_t 		random[32];
+	uint8_t 		mac[8];
+} __packed;
+
+#define EOU_PINGPONGLEN 	sizeof(struct eou_pingpong)
 
 struct eou_softc {
 	struct arpcom		 sc_ac;
-	// { 
-	// 		ac_enaddr 	- holds MAC address of the interface
-	// }
 	struct ifmedia		 sc_media;
 
 	void			*sc_ahcookie;
 	void			*sc_lhcookie;
 	void			*sc_dhcookie;
 
-	struct sockaddr_storage	 sc_src;
-	struct sockaddr_storage	 sc_dst;
+	struct mbuf		*dest_addr;
+
+	struct sockaddr_storage		sc_src;
+	struct sockaddr_storage	 	sc_dst;
+	struct socket		*so;
 	in_port_t		 sc_dstport;
 	u_int			 sc_rdomain;
 	u_int32_t		 sc_vnetid;
@@ -79,29 +112,20 @@ eouattach(int neou)
 int
 eou_clone_create(struct if_clone *ifc, int unit)
 {
-	// Called on ifconfig eou create
 	struct ifnet		*ifp;
-	// {
-	// 	...
-	//	if_xname 	- name of this instance of the interface
-	// 	if_flags 	- interface capabilities and state
-	//	if_sortc 	- pointer to the interfaces software state
-	// 	if_ioctl 	- pointer to the interfaces ioctl function
-	//	if_start 	- pointer to the transmit function
-	//	if_snd	 	- queue of packets ready for transmission
-	//  ...
-	// }
 	struct eou_softc	*sc;
 
-	// Allocate memory for eou_softc structure
+	/* Allocate memory for eou_softc structure */
 	if ((sc = malloc(sizeof(*sc),
 	    M_DEVBUF, M_NOWAIT|M_ZERO)) == NULL)
 		return (ENOMEM);
 
+	MGET(sc->dest_addr, M_WAIT, MT_SONAME);
+
 	ifp = &sc->sc_ac.ac_if;
-	// Assign name
+	/* Assign name */
 	snprintf(ifp->if_xname, sizeof ifp->if_xname, "eou%d", unit);
-	// Assign interface flags here
+	/* Assign interface flags here */
 	ifp->if_flags = IFF_BROADCAST | IFF_SIMPLEX | IFF_MULTICAST;
 	ether_fakeaddr(ifp);
 
@@ -142,7 +166,6 @@ eou_clone_destroy(struct ifnet *ifp)
 	}
 
 	struct eou_softc	*sc = ifp->if_softc;
-
 	ifmedia_delete_instance(&sc->sc_media, IFM_INST_ANY);
 	ether_ifdetach(ifp);
 	if_detach(ifp);
@@ -180,9 +203,9 @@ eoustart(struct ifnet *ifp)
 int
 eou_config(struct ifnet *ifp, struct sockaddr *src, struct sockaddr *dst)
 {
-	struct eou_softc	*sc = (struct eou_softc *)ifp->if_softc;
+	struct eou_softc	*sc = (struct eou_softc *) ifp->if_softc;
 	struct sockaddr_in	*src4, *dst4;
-	int			 reset = 0;
+	int			reset = 0;
 
 	if (src != NULL && dst != NULL) {
 		/* XXX inet6 is not supported */
@@ -198,11 +221,11 @@ eou_config(struct ifnet *ifp, struct sockaddr *src, struct sockaddr *dst)
 	src4 = satosin(src);
 	dst4 = satosin(dst);
 
-	// Check if adresses are valid
+	/* Check if adresses are valid */
 	if (src4->sin_len != sizeof(*src4)||dst4->sin_len != sizeof(*dst4))
 		return (EINVAL);
 
-	// Assign port if specified 
+	/* Assign port if specified */
 	if (dst4->sin_port) {
 		sc->sc_dstport = dst4->sin_port;
 
@@ -211,7 +234,7 @@ eou_config(struct ifnet *ifp, struct sockaddr *src, struct sockaddr *dst)
 			ifp->if_xname, ntohs(dst4->sin_port)); 
 	} else {
 		sc->sc_dstport = (in_port_t) htons(EOU_PORT); 
-		// Populate dst->sin_port with default port value
+		/* Populate dst->sin_port with default port value */
 		dst4->sin_port = sc->sc_dstport;
 		
 		if(ifp->if_flags & IFF_DEBUG)
@@ -219,7 +242,7 @@ eou_config(struct ifnet *ifp, struct sockaddr *src, struct sockaddr *dst)
 			ifp->if_xname, ntohs(sc->sc_dstport));
 	}
 
-	// Reset configuration if needed
+	/* Reset configuration if needed */
 	if (!reset) {
 		bzero(&sc->sc_src, sizeof(sc->sc_src));
 		bzero(&sc->sc_dst, sizeof(sc->sc_dst));
@@ -231,7 +254,8 @@ eou_config(struct ifnet *ifp, struct sockaddr *src, struct sockaddr *dst)
 }
 
 
-/* ARGSUSED 
+/* 
+* ARGSUSED 
 * Parameters:
 * ifp - interface descriptor
 * cmd - a request code number
@@ -239,11 +263,15 @@ eou_config(struct ifnet *ifp, struct sockaddr *src, struct sockaddr *dst)
 int
 eouioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 {
-	// Access data about this pseudo-device
+	/* Access data about this pseudo-device */
 	struct eou_softc	*sc = (struct eou_softc *)ifp->if_softc;
 	struct ifaddr		*ifa = (struct ifaddr *)data;
 	struct ifreq		*ifr = (struct ifreq *)data;
 	struct if_laddrreq	*lifr = (struct if_laddrreq *)data;
+	struct socket		*so; /* Socket */
+	struct mbuf		*m;
+	struct sockaddr		*sa;
+	struct proc		*p = curproc;
 	int			 error = 0, link_state, s;
 
 	switch (cmd) {
@@ -255,7 +283,7 @@ eouioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 
 	case SIOCSIFFLAGS:
 		if (ifp->if_flags & IFF_UP) {
-			// If IFF_UP is true, 
+			/* If IFF_UP is true, */
 			ifp->if_flags |= IFF_RUNNING;
 			link_state = LINK_STATE_UP;
 		} else {
@@ -278,58 +306,110 @@ eouioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 		error = ifmedia_ioctl(ifp, ifr, &sc->sc_media, cmd);
 		break;
 
-	// Set new source and destination address
+	/* Set new source and destination address */
 	case SIOCSLIFPHYADDR:
-		// Get software lock
+		/* Get software lock */
 		s = splnet();
-		// Set source and destination information
+		/* Set source and destination information */
 		error = eou_config(ifp,
 		    (struct sockaddr *)&lifr->addr,
 		    (struct sockaddr *)&lifr->dstaddr);
+
+		/* try to connect to socket if configured with no errors */
+		if (!error) {
+			/*  socreate -> sobind -> soconnect pipeline
+				1. Socreate - create new socket */
+			if (sc->so == NULL) {
+				error = socreate(sc->sc_dst.ss_family,
+				    &so, SOCK_DGRAM, 17);
+
+				if (error) {
+					if (ifp->if_flags & IFF_DEBUG)
+						printf("[%s] DEBUG: failed to create a socket. Error: %d.\n", 
+						ifp->if_xname, error);
+					break;
+				}
+
+				/* 2. Sobind - bind socket locally */
+				MGET(m, M_WAIT, MT_SONAME);
+				m->m_len = sc->sc_src.ss_len;
+				sa = mtod(m, struct sockaddr *);
+				memcpy(sa, &sc->sc_src,
+				    sc->sc_src.ss_len);
+				error = sobind(so, m, p);
+				m_freem(m);
+				if (error) {
+					if (ifp->if_flags & IFF_DEBUG)
+						printf("[%s] DEBUG: failed to bind a socket. Error: %d.\n", ifp->if_xname, error);
+					soclose(so);
+					splx(s);
+					return (error);
+				}
+
+				/* 3. Soconnect - connect to destination */
+				sc->dest_addr->m_len = sc->sc_dst.ss_len;
+				sa = mtod(sc->dest_addr, struct sockaddr *);
+				/* - Fill the second m_buf with the dst */
+				memcpy(sa, &sc->sc_dst, sc->sc_dst.ss_len);
+				/* - Connect to the socket and the dst. */
+				error = soconnect(so, sc->dest_addr);
+				if (error) {
+					if(ifp->if_flags & IFF_DEBUG)
+						printf("[%s] DEBUG: failed to connect. Error: %d.\n", ifp->if_xname, error);
+					soclose(so);
+					splx(s);
+					return (error);
+				}
+
+				sc->so = so;
+			} else {
+				if(ifp->if_flags & IFF_DEBUG)
+						printf("[%s] DEBUG: socket already exists.\n", ifp->if_xname);
+			}
+		}
 		splx(s);
 		break;
 
-	// Remove source and destination address
+	/* Remove source and destination address */
 	case SIOCDIFPHYADDR:
 		s = splnet();
-		// Fill source and destination values with zeros
+		/* Fill source and destination values with zeros */
 		bzero(&sc->sc_src, sizeof(sc->sc_src));
 		bzero(&sc->sc_dst, sizeof(sc->sc_dst));
-		sc->sc_dstport = htons(3301);
+		sc->sc_dstport = htons(EOU_PORT);
 		splx(s);
 		break;
 
-	// Get source and destination address 
+	/* Get source and destination address */
 	case SIOCGLIFPHYADDR:
 		if (sc->sc_dst.ss_family == AF_UNSPEC) {
 			error = EADDRNOTAVAIL;
 			break;
 		}
-		// Fill source and destination with zeros first
+		/* Fill source and destination with zeros first */
 		bzero(&lifr->addr, sizeof(lifr->addr));
 		bzero(&lifr->dstaddr, sizeof(lifr->dstaddr));
-		// Populate them with actual source and destination values
+		/* Populate them with actual source and destination values */
 		memcpy(&lifr->addr, &sc->sc_src, sc->sc_src.ss_len);
 		memcpy(&lifr->dstaddr, &sc->sc_dst, sc->sc_dst.ss_len);
 		break;
 
-	// Set VNETID
+	/* Set VNETID */
 	case SIOCSVNETID:
 		if (ifp->if_flags & IFF_DEBUG)
 			printf("[%s] DEBUG: try to set vnetid to %d.\n", 
 				ifp->if_xname, ifr->ifr_vnetid);
 		
-		// TODO Check if user is superuser
 		if (ifr->ifr_vnetid < 0 || ifr->ifr_vnetid > 0x00ffffff) {
 			error = EINVAL;
 			break;
 		}
 
-		// aquire software lock
+		/* Aquire software lock */
 		s = splnet();
-		// Get vnetid from interface and assign it to sc
+		/* Get vnetid from interface and assign it to sc */
 		sc->sc_vnetid = (u_int32_t)ifr->ifr_vnetid;
-		// Release lock
+		/* Release lock */
 		splx(s);
 		
 		if (ifp->if_flags & IFF_DEBUG)
@@ -339,7 +419,7 @@ eouioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 		break;
 
 	case SIOCGVNETID:
-		// Return VNETID back to the interface
+		/* Return VNETID back to the interface */
 		ifr->ifr_vnetid = (int)sc->sc_vnetid;
 		if (ifp->if_flags & IFF_DEBUG) {
 			printf("[%s] DEBUG: vnetid requested: %d. \n",
