@@ -252,13 +252,11 @@ eouioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 {
 	// Access data about this pseudo-device
 	struct eou_softc	*sc = (struct eou_softc *)ifp->if_softc;
-	struct eou_header	*h;
 	struct ifaddr		*ifa = (struct ifaddr *)data;
 	struct ifreq		*ifr = (struct ifreq *)data;
 	struct if_laddrreq	*lifr = (struct if_laddrreq *)data;
 	struct socket		*so; /* Socket */
 	struct mbuf			*m;
-	struct mbuf			*addr;
 	struct sockaddr		*sa;
 	struct proc			*p = curproc;
 	int			 error = 0, link_state, s;
@@ -353,12 +351,10 @@ eouioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 				}
 
 				sc->so = so;
-				// Configure device media state and link state
-				ifmedia_set(&sc->sc_status, IFM_AVALID | IFM_ACTIVE);
 			} else {
 				if(ifp->if_flags & IFF_DEBUG)
 						printf("[%s] DEBUG: socket already exists.\n", 
-						ifp->if_xname, error);
+						ifp->if_xname);
 			}
 		}
 		splx(s);
