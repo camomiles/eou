@@ -248,7 +248,8 @@ eouioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 	struct if_laddrreq	*lifr = (struct if_laddrreq *)data;
 	struct socket		*so; /* Socket */
 	struct mbuf			*m; 
-	struct sockaddr		*sa; 
+	struct sockaddr		*sa;
+	struct proc			*p = curproc;
 	int			 error = 0, link_state, s;
 
 	switch (cmd) {
@@ -314,7 +315,7 @@ eouioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 				MGET(m, M_WAIT, MT_SONAME);
 				m->m_len = sc->sc_src.ss_len;
 				sa = mtod(m, struct sockaddr *);
-				memcpy(sa, sc->sc_src,
+				memcpy(sa, &sc->sc_src,
 				    sc->sc_src.ss_len);
 
 				error = sobind(so, m, p);
@@ -334,7 +335,7 @@ eouioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 				m->m_len = sc->sc_dst.ss_len;
 				sa = mtod(m, struct sockaddr *);
 				// - Fill the second m_buf with the dst
-				memcpy(sa, sc->sc_dst,
+				memcpy(sa, &sc->sc_dst,
 				    sc->sc_dst.ss_len);
 				// - Connect to the socket and the dst.
 				error = soconnect(so, m);
