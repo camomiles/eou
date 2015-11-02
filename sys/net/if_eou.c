@@ -386,7 +386,7 @@ eouioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 
 				h.eou_type = htons(EOU_T_PING);
 				printf("Try to copyback: \n");
-				m_copyback(m, 0, EOU_HDRLEN, &h, M_NOWAIT);
+				m_copym(m, 0, EOU_HDRLEN, &h, M_NOWAIT);
 
 
 				MGET(addr, M_WAIT, MT_SONAME);
@@ -412,6 +412,8 @@ eouioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 				} else {
 					printf("Ping was sent to socket.\n");
 				}
+
+				m_freem(addr);
 			} else {
 				printf("Socket already exists.\n");
 			}
