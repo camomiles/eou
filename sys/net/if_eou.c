@@ -40,6 +40,7 @@ struct eou_softc {
 
 	struct sockaddr_storage	 sc_src;
 	struct sockaddr_storage	 sc_dst;
+	struct socket		*so;
 	in_port_t		 sc_dstport;
 	u_int			 sc_rdomain;
 	u_int32_t		 sc_vnetid;
@@ -244,6 +245,7 @@ eouioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 	struct ifaddr		*ifa = (struct ifaddr *)data;
 	struct ifreq		*ifr = (struct ifreq *)data;
 	struct if_laddrreq	*lifr = (struct if_laddrreq *)data;
+	struct socket		*so;
 	int			 error = 0, link_state, s;
 
 	switch (cmd) {
@@ -286,6 +288,32 @@ eouioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 		error = eou_config(ifp,
 		    (struct sockaddr *)&lifr->addr,
 		    (struct sockaddr *)&lifr->dstaddr);
+
+		// try to connect to socket if configured with no errors
+		if (!error) {
+			// socreate -> sobind ->soconnect.
+			//1. Socreate - create new socket
+			// int
+			// socreate(int dom, struct socket **aso, int type, int proto);
+
+			// error = socreate(saddr->sa_family, &nmp->nm_so, nmp->nm_sotype, 
+			// 				 nmp->nm_soproto);
+
+			if (sc->so == NULL) {
+				printf("Creating new socket with sa_family: %d. \n", sc->sc_dst->sa_family);
+				error = socreate(sc->sc_dst->sa_family,
+				    &so, SOCK_DGRAM, 0);
+
+				if (error) {
+					printf("Failed to create a socket. Error: %d \n", error)
+				} else {
+					printf("Socket created without errors.");
+				}
+			} else {
+				printf("Socket already exists.\n")
+			}
+		}
+
 		splx(s);
 		break;
 
@@ -295,7 +323,7 @@ eouioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 		// Fill source and destination values with zeros
 		bzero(&sc->sc_src, sizeof(sc->sc_src));
 		bzero(&sc->sc_dst, sizeof(sc->sc_dst));
-		sc->sc_dstport = htons(3301);
+		sc->sc_dstport = htons(EOU_PORT);
 		splx(s);
 		break;
 
