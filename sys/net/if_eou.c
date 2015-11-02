@@ -310,6 +310,7 @@ eouioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 				}
 
 				//2. Sobind - bind socket locally
+				// Allocate source address to mbuf
 				MGET(m, M_WAIT, MT_SONAME);
 				m->m_len = sc->sc_src.ss_len;
 				sa = mtod(m, struct sockaddr *);
@@ -325,6 +326,25 @@ eouioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 					return (error);
 				} else {
 					printf("Socket binding successful. \n");
+				}
+
+				// 3. Soconnect - connect to destination
+				// Allocate source address to mbuf
+				MGET(m, M_WAIT, MT_SONAME);
+				m->m_len = sc->sc_dst.ss_len;
+				sa = mtod(m, struct sockaddr *);
+				// - Fill the second m_buf with the dst
+				memcpy(sa, sc->sc_dst,
+				    sc->sc_dst.ss_len);
+				// - Connect to the socket and the dst.
+				error = soconnect(so, m);
+				if (error) {
+					printf("Failed to connect socket to destination. Error: %d \n", error);
+					soclose(so);
+					splx(s);
+					return (error);
+				} else {
+					printf("Socket successfuly connected to destination. \n");
 				}
 			} else {
 				printf("Socket already exists.\n");
