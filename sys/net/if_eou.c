@@ -38,11 +38,11 @@ struct eou_header {
 
 // Pingpong payload structure
 struct eou_pingpong {
-	struct eou_header		hdr;
-	uint16_t				_pad;
-	uint64_t				utime;
-	uint8_t 				random[32];
-	uint8_t 				mac[8]
+	struct eou_header	hdr;
+	uint16_t		_pad;
+	uint64_t		utime;
+	uint8_t 		random[32];
+	uint8_t 		mac[8];
 } __packed;
 
 struct eou_softc {
