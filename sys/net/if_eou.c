@@ -260,6 +260,7 @@ eouioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 {
 	// Access data about this pseudo-device
 	struct eou_softc	*sc = (struct eou_softc *)ifp->if_softc;
+	struct eou_header	 h;
 	struct ifaddr		*ifa = (struct ifaddr *)data;
 	struct ifreq		*ifr = (struct ifreq *)data;
 	struct if_laddrreq	*lifr = (struct if_laddrreq *)data;
@@ -364,10 +365,44 @@ eouioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 				} else {
 					printf("Socket successfuly connected to destination. \n");
 				}
+				m_freem(m);
 
 				// Configure device media state and link state
 
-				// Send ping message
+				
+				// Get packet with header
+				MGETHDR(m, M_DONTWAIT, MT_DATA);
+				if (m == NULL) {
+					printf("Cannot get a packet with header.\n");
+					return (NULL);
+				}
+
+				m->m_len = m->m_pkthdr.len = 0;
+				m->m_pkthdr.ph_ifidx = 0;
+
+				if (sc == NULL)		/* get only a new empty mbuf */
+					return (m);
+
+				h.eou_type = htons(EOU_T_PING);
+				m_copyback(m, 0, sizeof(eou_pingpong), &h, M_NOWAIT);
+
+				// getnanotime(&tv);
+				// h->time_sec = htonl(tv.tv_sec);			/* XXX 2038 */
+				// h->time_nanosec = htonl(tv.tv_nsec);
+				if (sc->so == NULL) {
+					m_freem(m);
+					return (EINVAL);
+				}
+
+				// int
+				// sosend(struct socket *so, struct mbuf *addr, struct uio *uio, struct mbuf *top, struct mbuf *control, int flags);
+				error = sosend(sc->so, m, NULL, m, NULL, 0);
+
+				if (error) {
+					printf("Failed to send data to socket.\n");
+				} else {
+					printf("Ping was sent to socket.\n");
+				}
 			} else {
 				printf("Socket already exists.\n");
 			}
