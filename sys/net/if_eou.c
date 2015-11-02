@@ -18,14 +18,13 @@
 #define EOU_PORT	3301
 
 void	eouattach(int);
-int	eouioctl(struct ifnet *, u_long, caddr_t);
+int		eouioctl(struct ifnet *, u_long, caddr_t);
 void	eoustart(struct ifnet *);
-int	eou_clone_create(struct if_clone *, int);
-int	eou_clone_destroy(struct ifnet *);
-int	eou_media_change(struct ifnet *);
+int		eou_clone_create(struct if_clone *, int);
+int		eou_clone_destroy(struct ifnet *);
+int		eou_media_change(struct ifnet *);
 void	eou_media_status(struct ifnet *, struct ifmediareq *);
 int 	eou_config(struct ifnet *, struct sockaddr *, struct sockaddr *);
-
 
 struct eou_header { 
 	uint32_t 	eou_network;
@@ -51,9 +50,6 @@ struct eou_pingpong {
 
 struct eou_softc {
 	struct arpcom		 sc_ac;
-	// { 
-	// 		ac_enaddr 	- holds MAC address of the interface
-	// }
 	struct ifmedia		 sc_media;
 
 	void			*sc_ahcookie;
@@ -104,18 +100,7 @@ eouattach(int neou)
 int
 eou_clone_create(struct if_clone *ifc, int unit)
 {
-	// Called on ifconfig eou create
 	struct ifnet		*ifp;
-	// {
-	// 	...
-	//	if_xname 	- name of this instance of the interface
-	// 	if_flags 	- interface capabilities and state
-	//	if_sortc 	- pointer to the interfaces software state
-	// 	if_ioctl 	- pointer to the interfaces ioctl function
-	//	if_start 	- pointer to the transmit function
-	//	if_snd	 	- queue of packets ready for transmission
-	//  ...
-	// }
 	struct eou_softc	*sc;
 
 	// Allocate memory for eou_softc structure
@@ -169,7 +154,6 @@ eou_clone_destroy(struct ifnet *ifp)
 	}
 
 	struct eou_softc	*sc = ifp->if_softc;
-
 	ifmedia_delete_instance(&sc->sc_media, IFM_INST_ANY);
 	ether_ifdetach(ifp);
 	if_detach(ifp);
@@ -207,9 +191,9 @@ eoustart(struct ifnet *ifp)
 int
 eou_config(struct ifnet *ifp, struct sockaddr *src, struct sockaddr *dst)
 {
-	struct eou_softc	*sc = (struct eou_softc *)ifp->if_softc;
-	struct sockaddr_in	*src4, *dst4;
-	int			 reset = 0;
+	struct eou_softc		*sc = (struct eou_softc *) ifp->if_softc;
+	struct sockaddr_in		*src4, *dst4;
+	int			 			reset = 0;
 
 	if (src != NULL && dst != NULL) {
 		/* XXX inet6 is not supported */
@@ -325,101 +309,58 @@ eouioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 			// socreate -> sobind -> soconnect pipeline
 			//1. Socreate - create new socket
 			if (sc->so == NULL) {
-				printf("Creating socket. sa_family: %d. \n",
-					sc->sc_dst.ss_family);
 				error = socreate(sc->sc_dst.ss_family,
 				    &so, SOCK_DGRAM, 17);
 
 				if (error) {
-					printf("Failed to create a socket. Error: %d \n", error);
+					if (ifp->if_flags & IFF_DEBUG)
+						printf("[%s] DEBUG: failed to create a socket. Error: %d.\n", 
+						ifp->if_xname, error);
 					break;
-				} else {
-					printf("Socket created without errors.\n");
 				}
 
 				//2. Sobind - bind socket locally
-				// Allocate source address to mbuf
 				MGET(m, M_WAIT, MT_SONAME);
 				m->m_len = sc->sc_src.ss_len;
 				sa = mtod(m, struct sockaddr *);
 				memcpy(sa, &sc->sc_src,
 				    sc->sc_src.ss_len);
-
 				error = sobind(so, m, p);
 				m_freem(m);
 				if (error) {
-					printf("Failed to bind socket. Error: %d \n", error);
+					if (ifp->if_flags & IFF_DEBUG)
+						printf("[%s] DEBUG: failed to bind a socket. Error: %d.\n", 
+						ifp->if_xname, error);
 					soclose(so);
 					splx(s);
 					return (error);
-				} else {
-					printf("Socket binding successful. \n");
 				}
 
 				// 3. Soconnect - connect to destination
-				// Allocate source address to mbuf
 				sc->dest_addr->m_len = sc->sc_dst.ss_len;
 				sa = mtod(sc->dest_addr, struct sockaddr *);
 				// - Fill the second m_buf with the dst
-				memcpy(sa, &sc->sc_dst,
-				    sc->sc_dst.ss_len);
+				memcpy(sa, &sc->sc_dst, sc->sc_dst.ss_len);
 				// - Connect to the socket and the dst.
 				error = soconnect(so, sc->dest_addr);
 				if (error) {
-					printf("Failed to connect socket to destination. Error: %d \n", error);
+					if(ifp->if_flags & IFF_DEBUG)
+						printf("[%s] DEBUG: failed to connect to destination. Error: %d.\n", 
+						ifp->if_xname, error);
 					soclose(so);
 					splx(s);
 					return (error);
-				} else {
-					printf("Socket successfuly connected to destination. \n");
 				}
 
+				sc->so = so;
 				// Configure device media state and link state
-
-				
-				// Get packet with header
-				MGETHDR(m, M_DONTWAIT, MT_DATA);
-				if (m == NULL) {
-					printf("Cannot get a packet with header.\n");
-					return (error);
-				} else {
-					printf("Got packet with headers. \n");
-				}
-
-				m->m_len = m->m_pkthdr.len = EOU_HDRLEN;
-
-				printf("Try to copyback: \n");
-				h = mtod(m, struct eou_header *);
-				h->eou_type = htons(EOU_T_PING);
-
-				printf("Memcopy:\n");
-				m_copyback(m, 0, EOU_HDRLEN,
-						h, M_DONTWAIT);
-
-				// getnanotime(&tv);
-				// h->time_sec = htonl(tv.tv_sec);			/* XXX 2038 */
-				// h->time_nanosec = htonl(tv.tv_nsec);
-				if (so == NULL) {
-					printf("Socket is null\n");
-				}
-
-				// int
-				// sosend(struct socket *so, struct mbuf *addr, struct uio *uio, struct mbuf *top, struct mbuf *control, int flags);
-				printf("Try sending: \n");
-				error = sosend(so, sc->dest_addr, NULL, m, NULL, 0);
-
-				if (error) {
-					printf("Failed to send data to socket.\n");
-				} else {
-					printf("Ping was sent to socket.\n");
-				}
-
-				m_freem(addr);
+				ifmedia_set(&sc->sc_status, IFM_AVALID | IFM_ACTIVE);
 			} else {
-				printf("Socket already exists.\n");
+				if(ifp->if_flags & IFF_DEBUG)
+						printf("[%s] DEBUG: socket already exists.\n", 
+						ifp->if_xname, error);
 			}
 		}
-
 		splx(s);
 		break;
 
