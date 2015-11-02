@@ -58,6 +58,8 @@ struct eou_softc {
 	void			*sc_lhcookie;
 	void			*sc_dhcookie;
 
+	struct mbuf		*dest_addr;
+
 	struct sockaddr_storage		sc_src;
 	struct sockaddr_storage	 	sc_dst;
 	struct socket		*so;
@@ -118,6 +120,8 @@ eou_clone_create(struct if_clone *ifc, int unit)
 	if ((sc = malloc(sizeof(*sc),
 	    M_DEVBUF, M_NOWAIT|M_ZERO)) == NULL)
 		return (ENOMEM);
+
+	MGET(sc->dest_addr, M_WAIT, MT_SONAME);
 
 	ifp = &sc->sc_ac.ac_if;
 	// Assign name
@@ -270,6 +274,7 @@ eouioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 	struct mbuf			*m;
 	struct mbuf			*addr;
 	struct sockaddr		*sa;
+	struct eou_pingpong	*ping;
 	struct proc			*p = curproc;
 	int			 error = 0, link_state, s;
 
@@ -352,14 +357,13 @@ eouioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 
 				// 3. Soconnect - connect to destination
 				// Allocate source address to mbuf
-				MGET(m, M_WAIT, MT_SONAME);
-				m->m_len = sc->sc_dst.ss_len;
-				sa = mtod(m, struct sockaddr *);
+				sc->dest_addr->m_len = sc->sc_dst.ss_len;
+				sa = mtod(sc->dest_addr, struct sockaddr *);
 				// - Fill the second m_buf with the dst
 				memcpy(sa, &sc->sc_dst,
 				    sc->sc_dst.ss_len);
 				// - Connect to the socket and the dst.
-				error = soconnect(so, m);
+				error = soconnect(so, sc->dest_addr);
 				if (error) {
 					printf("Failed to connect socket to destination. Error: %d \n", error);
 					soclose(so);
@@ -368,7 +372,6 @@ eouioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 				} else {
 					printf("Socket successfuly connected to destination. \n");
 				}
-				m_freem(m);
 
 				// Configure device media state and link state
 
@@ -382,30 +385,26 @@ eouioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 					printf("Got packet with headers. \n");
 				}
 
-				m->m_len = m->m_pkthdr.len = 0;
+				m->m_len = m->m_pkthdr.len = EOU_HDRLEN;
 
 				h.eou_type = htons(EOU_T_PING);
 				printf("Try to copyback: \n");
-				m_copym(m, 0, EOU_HDRLEN, &h, M_NOWAIT);
+				ping = mtod(m, struct eou_pingpong *);
+				printf("Memcopy:\n");
+				m_copyback(m, 0, sizeof(struct eou_header),
+						&h, M_WAIT);
 
-
-				MGET(addr, M_WAIT, MT_SONAME);
-				addr->m_len = sc->sc_dst.ss_len;
-				sa = mtod(addr, struct sockaddr *);
-				memcpy(sa, &sc->sc_dst,
-				    sc->sc_dst.ss_len);
 				// getnanotime(&tv);
 				// h->time_sec = htonl(tv.tv_sec);			/* XXX 2038 */
 				// h->time_nanosec = htonl(tv.tv_nsec);
-				if (sc->so == NULL) {
-					m_freem(m);
-					return (EINVAL);
+				if (so == NULL) {
+					printf("Socket is null\n");
 				}
 
 				// int
 				// sosend(struct socket *so, struct mbuf *addr, struct uio *uio, struct mbuf *top, struct mbuf *control, int flags);
 				printf("Try sending: \n");
-				error = sosend(sc->so, addr, NULL, m, NULL, 0);
+				error = sosend(sc->so, sc->dest_addr, NULL, m, NULL, 0);
 
 				if (error) {
 					printf("Failed to send data to socket.\n");
