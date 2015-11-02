@@ -21,6 +21,9 @@ int	eou_clone_create(struct if_clone *, int);
 int	eou_clone_destroy(struct ifnet *);
 int	eou_media_change(struct ifnet *);
 void	eou_media_status(struct ifnet *, struct ifmediareq *);
+int 	eou_config(struct ifnet *, struct sockaddr *, struct sockaddr *);
+
+
 
 struct eou_softc {
 	struct arpcom		 sc_ac;
@@ -177,7 +180,7 @@ eou_config(struct ifnet *ifp, struct sockaddr *src, struct sockaddr *dst)
 {
 	struct eou_softc	*sc = (struct eou_softc *)ifp->if_softc;
 	struct sockaddr_in	*src4, *dst4;
-	int			 reset = 0, error;
+	int			 reset = 0;
 
 	if (src != NULL && dst != NULL) {
 		/* XXX inet6 is not supported */
