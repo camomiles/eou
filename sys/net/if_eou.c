@@ -56,7 +56,7 @@ void
 eou_media_status(struct ifnet *ifp, struct ifmediareq *imr)
 {
 	imr->ifm_active = IFM_ETHER | IFM_AUTO;
-	imr->ifm_status = IFM_AVALID | IFM_ACTIVE;
+	imr->ifm_status = IFM_AVALID;
 }
 
 void
@@ -94,7 +94,9 @@ eou_clone_create(struct if_clone *ifc, int unit)
 		return (ENOMEM);
 
 	ifp = &sc->sc_ac.ac_if;
+	// Assign name
 	snprintf(ifp->if_xname, sizeof ifp->if_xname, "eou%d", unit);
+	// Assign interface flags here
 	ifp->if_flags = IFF_BROADCAST | IFF_SIMPLEX | IFF_MULTICAST;
 	ether_fakeaddr(ifp);
 
@@ -115,7 +117,8 @@ eou_clone_create(struct if_clone *ifc, int unit)
 	ether_ifattach(ifp);
 
 	if (ifp->if_flags & IFF_DEBUG) {
-		printf("[%s] Debug: interface has been created. \n", ifp->if_xname);
+		printf("[%s] Debug: interface has been created. \n",
+			ifp->if_xname);
 	} 
 
 	return (0);
@@ -150,7 +153,8 @@ void
 eoustart(struct ifnet *ifp)
 {
 	if (ifp->if_flags & IFF_DEBUG) {
-		printf("[%s] Debug: start packet transmission. \n", ifp->if_xname);
+		printf("[%s] Debug: start packet transmission. \n", 
+			ifp->if_xname);
 	}
 
 	struct mbuf		*m;
@@ -195,15 +199,9 @@ eouioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 			// If IFF_UP is true, 
 			ifp->if_flags |= IFF_RUNNING;
 			link_state = LINK_STATE_UP;
-			if (ifp->if_flags & IFF_DEBUG) {
-				printf("[%s] Debug: link state is now UP. \n", ifp->if_xname);
-			}
 		} else {
 			ifp->if_flags &= ~IFF_RUNNING;
 			link_state = LINK_STATE_DOWN;
-			if (ifp->if_flags & IFF_DEBUG) {
-				printf("[%s] Debug: link state is now DOWN. \n", ifp->if_xname);
-			}
 		}
 
 		if (ifp->if_link_state != link_state) {
@@ -223,31 +221,39 @@ eouioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 
 	// Set VNETID
 	case SIOCSVNETID:
+		if (ifp->if_flags & IFF_DEBUG)
+			printf("[%s] Debug: try to set vnetid to %d.\n", 
+				ifp->if_xname, ifr->ifr_vnetid);
+		
 		// TODO Check if user is superuser
 		if (ifr->ifr_vnetid < 0 || ifr->ifr_vnetid > 0x00ffffff) {
 			error = EINVAL;
 			break;
 		}
+
 		// aquire software lock
 		s = splnet();
 		// Get vnetid from interface and assign it to sc
 		sc->sc_vnetid = (u_int32_t)ifr->ifr_vnetid;
 		// Release lock
 		splx(s);
+		
+		if (ifp->if_flags & IFF_DEBUG)
+			printf("[%s] Debug: vnetid has been set to %d",
+				ifp->if_xname, (int) sc->sc_vnetid);
+		
 		break;
 
 	case SIOCGVNETID:
 		// Return VNETID back to the interface
 		ifr->ifr_vnetid = (int)sc->sc_vnetid;
 		if (ifp->if_flags & IFF_DEBUG) {
-			printf("[%s] Debug: interface vnetid has been set to: %d. \n", ifp->if_xname, ifr->ifr_vnetid);
+			printf("[%s] Debug: vnetid requested: %d. \n",
+				ifp->if_xname, ifr->ifr_vnetid);
 		}
 		break;
 
 	default:
-		if (ifp->if_flags & IFF_DEBUG) {
-			printf("[%s] Debug: interface recieved following command: %lu. \n", ifp->if_xname, cmd);
-		} 
 		error = ether_ioctl(ifp, &sc->sc_ac, cmd, data);
 	}
 	return (error);
