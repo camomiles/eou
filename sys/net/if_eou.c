@@ -325,9 +325,7 @@ eouioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 
 				if (error) {
 					if (ifp->if_flags & IFF_DEBUG)
-						printf("[%s] DEBUG: failed
-							to create a socket.
-							Error: %d.\n", 
+						printf("[%s] DEBUG: failed to create a socket. Error: %d.\n", 
 						ifp->if_xname, error);
 					break;
 				}
@@ -342,10 +340,7 @@ eouioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 				m_freem(m);
 				if (error) {
 					if (ifp->if_flags & IFF_DEBUG)
-						printf("[%s] DEBUG: failed 
-							to bind a socket.
-							Error: %d.\n", 
-						ifp->if_xname, error);
+						printf("[%s] DEBUG: failed to bind a socket. Error: %d.\n", ifp->if_xname, error);
 					soclose(so);
 					splx(s);
 					return (error);
@@ -360,10 +355,7 @@ eouioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 				error = soconnect(so, sc->dest_addr);
 				if (error) {
 					if(ifp->if_flags & IFF_DEBUG)
-						printf("[%s] DEBUG: failed
-							to connect.
-							Error: %d.\n", 
-						ifp->if_xname, error);
+						printf("[%s] DEBUG: failed to connect. Error: %d.\n", ifp->if_xname, error);
 					soclose(so);
 					splx(s);
 					return (error);
@@ -372,9 +364,7 @@ eouioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 				sc->so = so;
 			} else {
 				if(ifp->if_flags & IFF_DEBUG)
-						printf("[%s] DEBUG: socket
-							already exists.\n", 
-						ifp->if_xname);
+						printf("[%s] DEBUG: socket already exists.\n", ifp->if_xname);
 			}
 		}
 		splx(s);
@@ -410,7 +400,6 @@ eouioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 			printf("[%s] DEBUG: try to set vnetid to %d.\n", 
 				ifp->if_xname, ifr->ifr_vnetid);
 		
-		/* TODO Check if user is superuser */
 		if (ifr->ifr_vnetid < 0 || ifr->ifr_vnetid > 0x00ffffff) {
 			error = EINVAL;
 			break;
