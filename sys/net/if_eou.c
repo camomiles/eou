@@ -3,6 +3,7 @@
 #include <sys/systm.h>
 #include <sys/mbuf.h>
 #include <sys/socket.h>
+#include <sys/socketvar.h>
 #include <sys/sockio.h>
 #include <sys/ioctl.h>
 #include <sys/types.h>
@@ -38,8 +39,8 @@ struct eou_softc {
 	void			*sc_lhcookie;
 	void			*sc_dhcookie;
 
-	struct sockaddr_storage	 sc_src;
-	struct sockaddr_storage	 sc_dst;
+	struct sockaddr_storage		sc_src;
+	struct sockaddr_storage	 	sc_dst;
 	struct socket		*so;
 	in_port_t		 sc_dstport;
 	u_int			 sc_rdomain;
@@ -293,24 +294,20 @@ eouioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 		if (!error) {
 			// socreate -> sobind ->soconnect.
 			//1. Socreate - create new socket
-			// int
-			// socreate(int dom, struct socket **aso, int type, int proto);
-
-			// error = socreate(saddr->sa_family, &nmp->nm_so, nmp->nm_sotype, 
-			// 				 nmp->nm_soproto);
 
 			if (sc->so == NULL) {
-				printf("Creating new socket with sa_family: %d. \n", sc->sc_dst->sa_family);
-				error = socreate(sc->sc_dst->sa_family,
-				    &so, SOCK_DGRAM, 0);
+				printf("Creating socket. sa_family: %d. \n",
+					sc->sc_dst.ss_family);
+				error = socreate(sc->sc_dst.ss_family,
+				    &so, SOCK_DGRAM, 17);
 
 				if (error) {
-					printf("Failed to create a socket. Error: %d \n", error)
+					printf("Failed to create a socket. Error: %d \n", error);
 				} else {
 					printf("Socket created without errors.");
 				}
 			} else {
-				printf("Socket already exists.\n")
+				printf("Socket already exists.\n");
 			}
 		}
 
