@@ -45,6 +45,8 @@ struct eou_pingpong {
 	uint8_t 		mac[8];
 } __packed;
 
+#define EOU_HDRLEN 	sizeof(struct eou_pingpong)
+
 struct eou_softc {
 	struct arpcom		 sc_ac;
 	// { 
@@ -374,17 +376,13 @@ eouioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 				MGETHDR(m, M_DONTWAIT, MT_DATA);
 				if (m == NULL) {
 					printf("Cannot get a packet with header.\n");
-					return (NULL);
+					return (error);
 				}
 
 				m->m_len = m->m_pkthdr.len = 0;
-				m->m_pkthdr.ph_ifidx = 0;
-
-				if (sc == NULL)		/* get only a new empty mbuf */
-					return (m);
 
 				h.eou_type = htons(EOU_T_PING);
-				m_copyback(m, 0, sizeof(eou_pingpong), &h, M_NOWAIT);
+				m_copyback(m, 0, EOU_HDRLEN, &h, M_NOWAIT);
 
 				// getnanotime(&tv);
 				// h->time_sec = htonl(tv.tv_sec);			/* XXX 2038 */
