@@ -1,4 +1,3 @@
-// TODO Include licence header back
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/mbuf.h>
@@ -18,11 +17,11 @@
 #define EOU_PORT	3301
 
 void	eouattach(int);
-int		eouioctl(struct ifnet *, u_long, caddr_t);
+int	eouioctl(struct ifnet *, u_long, caddr_t);
 void	eoustart(struct ifnet *);
-int		eou_clone_create(struct if_clone *, int);
-int		eou_clone_destroy(struct ifnet *);
-int		eou_media_change(struct ifnet *);
+int	eou_clone_create(struct if_clone *, int);
+int	eou_clone_destroy(struct ifnet *);
+int	eou_media_change(struct ifnet *);
 void	eou_media_status(struct ifnet *, struct ifmediareq *);
 int 	eou_config(struct ifnet *, struct sockaddr *, struct sockaddr *);
 
@@ -191,9 +190,9 @@ eoustart(struct ifnet *ifp)
 int
 eou_config(struct ifnet *ifp, struct sockaddr *src, struct sockaddr *dst)
 {
-	struct eou_softc		*sc = (struct eou_softc *) ifp->if_softc;
-	struct sockaddr_in		*src4, *dst4;
-	int			 			reset = 0;
+	struct eou_softc	*sc = (struct eou_softc *) ifp->if_softc;
+	struct sockaddr_in	*src4, *dst4;
+	int			reset = 0;
 
 	if (src != NULL && dst != NULL) {
 		/* XXX inet6 is not supported */
@@ -256,9 +255,9 @@ eouioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 	struct ifreq		*ifr = (struct ifreq *)data;
 	struct if_laddrreq	*lifr = (struct if_laddrreq *)data;
 	struct socket		*so; /* Socket */
-	struct mbuf			*m;
+	struct mbuf		*m;
 	struct sockaddr		*sa;
-	struct proc			*p = curproc;
+	struct proc		*p = curproc;
 	int			 error = 0, link_state, s;
 
 	switch (cmd) {
@@ -312,7 +311,9 @@ eouioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 
 				if (error) {
 					if (ifp->if_flags & IFF_DEBUG)
-						printf("[%s] DEBUG: failed to create a socket. Error: %d.\n", 
+						printf("[%s] DEBUG: failed
+							to create a socket.
+							Error: %d.\n", 
 						ifp->if_xname, error);
 					break;
 				}
@@ -327,7 +328,9 @@ eouioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 				m_freem(m);
 				if (error) {
 					if (ifp->if_flags & IFF_DEBUG)
-						printf("[%s] DEBUG: failed to bind a socket. Error: %d.\n", 
+						printf("[%s] DEBUG: failed 
+							to bind a socket.
+							Error: %d.\n", 
 						ifp->if_xname, error);
 					soclose(so);
 					splx(s);
@@ -343,7 +346,9 @@ eouioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 				error = soconnect(so, sc->dest_addr);
 				if (error) {
 					if(ifp->if_flags & IFF_DEBUG)
-						printf("[%s] DEBUG: failed to connect to destination. Error: %d.\n", 
+						printf("[%s] DEBUG: failed
+							to connect.
+							Error: %d.\n", 
 						ifp->if_xname, error);
 					soclose(so);
 					splx(s);
@@ -353,7 +358,8 @@ eouioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 				sc->so = so;
 			} else {
 				if(ifp->if_flags & IFF_DEBUG)
-						printf("[%s] DEBUG: socket already exists.\n", 
+						printf("[%s] DEBUG: socket
+							already exists.\n", 
 						ifp->if_xname);
 			}
 		}
