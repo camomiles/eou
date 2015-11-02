@@ -27,6 +27,23 @@ void	eou_media_status(struct ifnet *, struct ifmediareq *);
 int 	eou_config(struct ifnet *, struct sockaddr *, struct sockaddr *);
 
 
+struct eou_header { 
+	uint32_t 	eou_network;
+	uint16_t	eou_type;
+} __packed;
+     
+#define EOU_T_DATA		0x0000
+#define EOU_T_PING		0x8000
+#define EOU_T_PONG		0x8001
+
+// Pingpong payload structure
+struct eou_pingpong {
+	struct eou_header		hdr;
+	uint16_t				_pad;
+	uint64_t				utime;
+	uint8_t 				random[32];
+	uint8_t 				mac[8]
+} __packed;
 
 struct eou_softc {
 	struct arpcom		 sc_ac;
@@ -347,6 +364,10 @@ eouioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 				} else {
 					printf("Socket successfuly connected to destination. \n");
 				}
+
+				// Configure device media state and link state
+
+				// Send ping message
 			} else {
 				printf("Socket already exists.\n");
 			}
