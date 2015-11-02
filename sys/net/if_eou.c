@@ -5,6 +5,7 @@
 #include <sys/socket.h>
 #include <sys/sockio.h>
 #include <sys/ioctl.h>
+#include <sys/types.h>
 
 #include <net/if.h>
 #include <net/if_dl.h>
@@ -13,6 +14,7 @@
 #include <netinet/in.h>
 #include <netinet/if_ether.h>
 
+#define EOU_PORT	3301
 
 void	eouattach(int);
 int	eouioctl(struct ifnet *, u_long, caddr_t);
@@ -120,7 +122,7 @@ eou_clone_create(struct if_clone *ifc, int unit)
 	ether_ifattach(ifp);
 
 	if (ifp->if_flags & IFF_DEBUG) {
-		printf("[%s] Debug: interface has been created. \n",
+		printf("[%s] DEBUG: interface has been created. \n",
 			ifp->if_xname);
 	} 
 
@@ -136,7 +138,7 @@ int
 eou_clone_destroy(struct ifnet *ifp)
 {
 	if (ifp->if_flags & IFF_DEBUG) {
-		printf("[%s] Debug: destroy device. \n", ifp->if_xname);
+		printf("[%s] DEBUG: destroy device. \n", ifp->if_xname);
 	}
 
 	struct eou_softc	*sc = ifp->if_softc;
@@ -156,7 +158,7 @@ void
 eoustart(struct ifnet *ifp)
 {
 	if (ifp->if_flags & IFF_DEBUG) {
-		printf("[%s] Debug: start packet transmission. \n", 
+		printf("[%s] DEBUG: start packet transmission. \n", 
 			ifp->if_xname);
 	}
 
@@ -197,12 +199,25 @@ eou_config(struct ifnet *ifp, struct sockaddr *src, struct sockaddr *dst)
 	dst4 = satosin(dst);
 
 	// Check if adresses are valid
-	if (src4->sin_len != sizeof(*src4) || dst4->sin_len != sizeof(*dst4))
+	if (src4->sin_len != sizeof(*src4)||dst4->sin_len != sizeof(*dst4))
 		return (EINVAL);
 
 	// Assign port if specified 
-	if (dst4->sin_port)
+	if (dst4->sin_port) {
 		sc->sc_dstport = dst4->sin_port;
+
+		if(ifp->if_flags & IFF_DEBUG)
+			printf("[%s] DEBUG: use user specified port %d.\n",
+			ifp->if_xname, ntohs(dst4->sin_port)); 
+	} else {
+		sc->sc_dstport = (in_port_t) htons(EOU_PORT); 
+		// Populate dst->sin_port with default port value
+		dst4->sin_port = sc->sc_dstport;
+		
+		if(ifp->if_flags & IFF_DEBUG)
+			printf("[%s] DEBUG: use default port %d.\n", 
+			ifp->if_xname, ntohs(sc->sc_dstport));
+	}
 
 	// Reset configuration if needed
 	if (!reset) {
@@ -265,7 +280,6 @@ eouioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 
 	// Set new source and destination address
 	case SIOCSLIFPHYADDR:
-		printf("Set new source and destination address. \n");
 		// Get software lock
 		s = splnet();
 		// Set source and destination information
@@ -302,7 +316,7 @@ eouioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 	// Set VNETID
 	case SIOCSVNETID:
 		if (ifp->if_flags & IFF_DEBUG)
-			printf("[%s] Debug: try to set vnetid to %d.\n", 
+			printf("[%s] DEBUG: try to set vnetid to %d.\n", 
 				ifp->if_xname, ifr->ifr_vnetid);
 		
 		// TODO Check if user is superuser
@@ -319,7 +333,7 @@ eouioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 		splx(s);
 		
 		if (ifp->if_flags & IFF_DEBUG)
-			printf("[%s] Debug: vnetid has been set to %d",
+			printf("[%s] DEBUG: vnetid has been set to %d",
 				ifp->if_xname, (int) sc->sc_vnetid);
 		
 		break;
@@ -328,7 +342,7 @@ eouioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 		// Return VNETID back to the interface
 		ifr->ifr_vnetid = (int)sc->sc_vnetid;
 		if (ifp->if_flags & IFF_DEBUG) {
-			printf("[%s] Debug: vnetid requested: %d. \n",
+			printf("[%s] DEBUG: vnetid requested: %d. \n",
 				ifp->if_xname, ifr->ifr_vnetid);
 		}
 		break;
