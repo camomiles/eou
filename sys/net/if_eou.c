@@ -267,7 +267,8 @@ eouioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 	struct ifreq		*ifr = (struct ifreq *)data;
 	struct if_laddrreq	*lifr = (struct if_laddrreq *)data;
 	struct socket		*so; /* Socket */
-	struct mbuf			*m; 
+	struct mbuf			*m;
+	struct mbuf			*addr;
 	struct sockaddr		*sa;
 	struct proc			*p = curproc;
 	int			 error = 0, link_state, s;
@@ -388,11 +389,9 @@ eouioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 				m_copyback(m, 0, EOU_HDRLEN, &h, M_NOWAIT);
 
 
-				mbuf *adrr;
-				MGET(adrr, M_WAIT, MT_SONAME);
-				m->m_len = sc->sc_dst.ss_len;
-				sa = mtod(m, struct sockaddr *);
-				// - Fill the second m_buf with the dst
+				MGET(addr, M_WAIT, MT_SONAME);
+				addr->m_len = sc->sc_dst.ss_len;
+				sa = mtod(addr, struct sockaddr *);
 				memcpy(sa, &sc->sc_dst,
 				    sc->sc_dst.ss_len);
 				// getnanotime(&tv);
